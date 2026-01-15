@@ -1,0 +1,37 @@
+name: Jain Story Video Factory
+
+on:
+  push:
+    paths:
+      - "stories/**"
+
+jobs:
+  build-video:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get install ffmpeg -y
+        pip install -r requirements.txt
+
+    - name: Generate Video
+      run: python generate_video.py
+      env:
+        ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        OPENAI_IMAGE_KEY: ${{ secrets.OPENAI_IMAGE_KEY }}
+        YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: final_video
+        path: output/final_video.mp4
