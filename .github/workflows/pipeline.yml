@@ -1,13 +1,13 @@
 name: AI Jain Video Factory
 
 on:
-  workflow_dispatch:
-
+  # Auto-run when story files change
   push:
-    branches:
-      - main
     paths:
-      - "scripts/stories/**"
+      - "stories/**"
+
+  # ✅ Manual Run Button in GitHub Actions UI
+  workflow_dispatch:
 
 jobs:
   build-video:
