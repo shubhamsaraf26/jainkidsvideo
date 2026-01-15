@@ -2,17 +2,21 @@ import os, requests
 from moviepy.editor import *
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from google.oauth2.credentials import Credentials
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-OPENAI_IMAGE_KEY = os.getenv("OPENAI_IMAGE_KEY")
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+HF_API_KEY = os.getenv("HF_API_KEY")
 
-story_file = "stories/story1.txt"
-output_dir = "output"
-os.makedirs(output_dir, exist_ok=True)
+YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID")
+YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
+YOUTUBE_REFRESH_TOKEN = os.getenv("YOUTUBE_REFRESH_TOKEN")
 
-# Read story file
-with open(story_file, "r", encoding="utf-8") as f:
+STORY_FILE = "stories/story1.txt"
+OUTPUT_DIR = "output"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# ===== READ STORY =====
+with open(STORY_FILE, "r", encoding="utf-8") as f:
     data = f.read()
 
 title = data.split("TITLE:")[1].split("DESCRIPTION:")[0].strip()
@@ -20,52 +24,56 @@ description = data.split("DESCRIPTION:")[1].split("SCRIPT:")[0].strip()
 script = data.split("SCRIPT:")[1].split("SCENES:")[0].strip()
 scenes = data.split("SCENES:")[1].strip().split("\n")
 
-# Generate Voice using ElevenLabs
+# ===== GENERATE VOICE =====
 voice_url = "https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL"
 headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
-voice_data = {"text": script, "voice_settings": {"stability": 0.6, "similarity_boost": 0.8}}
-r = requests.post(voice_url, json=voice_data, headers=headers)
-voice_path = f"{output_dir}/voice.mp3"
-open(voice_path, "wb").write(r.content)
+voice_data = {"text": script}
+voice_response = requests.post(voice_url, json=voice_data, headers=headers)
 
-# Generate Images using OpenAI
+voice_path = f"{OUTPUT_DIR}/voice.mp3"
+open(voice_path, "wb").write(voice_response.content)
+
+# ===== GENERATE IMAGES =====
 image_paths = []
 for i, prompt in enumerate(scenes):
-    img_api = "https://api.openai.com/v1/images/generations"
-    headers = {"Authorization": f"Bearer {OPENAI_IMAGE_KEY}"}
-    payload = {"prompt": prompt, "n": 1, "size": "1024x1024"}
-    res = requests.post(img_api, json=payload, headers=headers).json()
-    img_url = res["data"][0]["url"]
-    img_data = requests.get(img_url).content
-    path = f"{output_dir}/scene{i}.png"
-    open(path, "wb").write(img_data)
-    image_paths.append(path)
+    response = requests.post(
+        "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2",
+        headers={"Authorization": f"Bearer {HF_API_KEY}"},
+        json={"inputs": f"Cute cartoon style, {prompt}"}
+    )
+    img_path = f"{OUTPUT_DIR}/scene{i}.png"
+    open(img_path, "wb").write(response.content)
+    image_paths.append(img_path)
 
-# Create Video
+# ===== CREATE VIDEO =====
 audio = AudioFileClip(voice_path)
-duration_per_image = audio.duration / len(image_paths)
+duration = audio.duration / len(image_paths)
 
-clips = []
-for img in image_paths:
-    clip = ImageClip(img).set_duration(duration_per_image)
-    clips.append(clip)
+clips = [ImageClip(img).set_duration(duration) for img in image_paths]
+video = concatenate_videoclips(clips, method="compose").set_audio(audio)
 
-video = concatenate_videoclips(clips, method="compose")
-video = video.set_audio(audio)
+final_video = f"{OUTPUT_DIR}/final_video.mp4"
+video.write_videofile(final_video, fps=24)
 
-final_video_path = f"{output_dir}/final_video.mp4"
-video.write_videofile(final_video_path, fps=24)
+# ===== UPLOAD TO YOUTUBE =====
+creds = Credentials(
+    None,
+    refresh_token=YOUTUBE_REFRESH_TOKEN,
+    token_uri="https://oauth2.googleapis.com/token",
+    client_id=YOUTUBE_CLIENT_ID,
+    client_secret=YOUTUBE_CLIENT_SECRET
+)
 
-# Upload to YouTube
-youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+youtube = build("youtube", "v3", credentials=creds)
+
 request = youtube.videos().insert(
     part="snippet,status",
     body={
         "snippet": {"title": title, "description": description, "categoryId": "22"},
         "status": {"privacyStatus": "public"}
     },
-    media_body=MediaFileUpload(final_video_path)
+    media_body=MediaFileUpload(final_video)
 )
-request.execute()
 
-print("Video Generated & Uploaded Successfully!")
+request.execute()
+print("AI Video Generated & Uploaded Successfully!")
