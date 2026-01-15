@@ -6,7 +6,6 @@ from google.oauth2.credentials import Credentials
 
 # ===== ENV KEYS =====
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-HF_API_KEY = os.getenv("HF_API_KEY")
 
 YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
@@ -27,7 +26,7 @@ script = data.split("SCRIPT:")[1].split("SCENES:")[0].strip()
 scenes = data.split("SCENES:")[1].strip().split("\n")
 
 # ===== GENERATE VOICE (ElevenLabs) =====
-print("🔊 Generating voice...")
+print("🔊 Generating voice with ElevenLabs...")
 
 voice_url = "https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL"
 voice_headers = {
@@ -42,41 +41,26 @@ voice_path = f"{OUTPUT_DIR}/voice.mp3"
 with open(voice_path, "wb") as f:
     f.write(voice_response.content)
 
-# ===== GENERATE IMAGES (HuggingFace Stable Diffusion with retry & validation) =====
-print("🎨 Generating images...")
+print("✅ Voice generated")
 
-HF_MODEL_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2"
-hf_headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+# ===== GENERATE IMAGES (Pollinations AI) =====
+print("🎨 Generating images using Pollinations AI...")
 
 image_paths = []
 
 for i, prompt in enumerate(scenes):
-    success = False
+    clean_prompt = prompt.replace(" ", "%20")
+    url = f"https://image.pollinations.ai/prompt/Cute%20colorful%20cartoon%20style,%20{clean_prompt}?width=1024&height=1024"
+
+    img_data = requests.get(url, timeout=60).content
     
-    for attempt in range(3):  # Retry up to 3 times
-        response = requests.post(
-            HF_MODEL_URL,
-            headers=hf_headers,
-            json={"inputs": f"Cute colorful cartoon style, {prompt}"},
-            timeout=60
-        )
+    img_path = f"{OUTPUT_DIR}/scene{i}.png"
+    with open(img_path, "wb") as f:
+        f.write(img_data)
+    
+    image_paths.append(img_path)
 
-        content_type = response.headers.get("content-type", "")
-
-        # If real image returned
-        if "image" in content_type:
-            img_path = f"{OUTPUT_DIR}/scene{i}.png"
-            with open(img_path, "wb") as f:
-                f.write(response.content)
-            image_paths.append(img_path)
-            success = True
-            break
-        
-        else:
-            print(f"⚠️ HuggingFace busy / rate-limited. Retry {attempt+1}/3")
-
-    if not success:
-        raise Exception("❌ HuggingFace image generation failed. Re-run workflow later.")
+print("✅ Images generated successfully")
 
 # ===== CREATE VIDEO =====
 print("🎬 Creating video...")
@@ -94,6 +78,8 @@ video = video.set_audio(audio)
 
 final_video = f"{OUTPUT_DIR}/final_video.mp4"
 video.write_videofile(final_video, fps=24)
+
+print("✅ Video created")
 
 # ===== UPLOAD TO YOUTUBE =====
 print("📤 Uploading to YouTube...")
@@ -125,4 +111,4 @@ request = youtube.videos().insert(
 
 request.execute()
 
-print("✅ AI Video Generated & Uploaded Successfully!")
+print("🎉 AI Video Generated & Uploaded Successfully!")
