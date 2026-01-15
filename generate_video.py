@@ -11,10 +11,14 @@ YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
 YOUTUBE_REFRESH_TOKEN = os.getenv("YOUTUBE_REFRESH_TOKEN")
 
-# ===== FILE PATHS =====
-STORY_FILE = "stories/story1.txt"
+# ===== STORY FILE (Auto-detected from GitHub Actions) =====
+story_name = os.getenv("STORY_FILE", "story1.txt")
+STORY_FILE = f"stories/{story_name}"
+
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+print(f"📘 Using story file: {STORY_FILE}")
 
 # ===== READ STORY =====
 with open(STORY_FILE, "r", encoding="utf-8") as f:
@@ -43,7 +47,7 @@ with open(voice_path, "wb") as f:
 
 print("✅ Voice generated")
 
-# ===== GENERATE IMAGES (Pollinations AI - Retry Only, No Fallback) =====
+# ===== GENERATE IMAGES (Pollinations AI) =====
 print("🎨 Generating images using Pollinations AI...")
 
 image_paths = []
@@ -68,9 +72,8 @@ for i, prompt in enumerate(scenes):
                 break
 
         except Exception:
-            print("⚠️ Connection timeout... retrying")
+            print("⚠️ Pollinations timeout... retrying")
 
-    # If still failed -> stop pipeline
     if not success:
         raise Exception(f"❌ Pollinations image generation failed for scene {i+1}. Re-run workflow.")
 
