@@ -6,7 +6,7 @@ on:
     paths:
       - "stories/**"
 
-  # Manual trigger button
+  # Manual trigger button in GitHub Actions
   workflow_dispatch:
 
 jobs:
@@ -17,34 +17,45 @@ jobs:
     - name: Checkout Repo
       uses: actions/checkout@v4
 
-    # Detect changed story file (only in push event)
+    # ===== Detect changed story file safely =====
     - name: Detect changed story file
-      id: detect
       run: |
         if [ "${{ github.event_name }}" = "push" ]; then
-          FILE=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep 'stories/' | head -n 1 | sed 's|stories/||')
+          FILE=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^stories/.*\.txt' | head -n 1 | sed 's|stories/||')
+          
+          # If detection fails, use default
+          if [ -z "$FILE" ]; then
+            FILE="story1.txt"
+          fi
+
           echo "STORY_FILE=$FILE" >> $GITHUB_ENV
         else
-          # Manual run fallback
+          # Manual run default
           echo "STORY_FILE=story1.txt" >> $GITHUB_ENV
         fi
 
     - name: Show selected story
-      run: echo "📘 Building story -> $STORY_FILE"
+      run: echo "📘 Building -> $STORY_FILE"
 
+    # ===== Setup Python =====
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
+    # ===== Install FFmpeg =====
     - name: Install FFmpeg
-      run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
 
-    - name: Install Python libraries
+    # ===== Install Python Libraries =====
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    # ===== Run Video Generator =====
     - name: Generate AI Video
       run: python generate_video.py
       env:

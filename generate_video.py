@@ -12,7 +12,12 @@ YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
 YOUTUBE_REFRESH_TOKEN = os.getenv("YOUTUBE_REFRESH_TOKEN")
 
 # ===== STORY FILE (Auto-detected from GitHub Actions) =====
-story_name = os.getenv("STORY_FILE", "story1.txt")
+story_name = os.getenv("STORY_FILE")
+
+# Safety fallback if env var is empty or missing
+if not story_name or story_name.strip() == "":
+    story_name = "story1.txt"
+
 STORY_FILE = f"stories/{story_name}"
 
 OUTPUT_DIR = "output"
