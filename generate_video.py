@@ -25,7 +25,7 @@ description = data.split("DESCRIPTION:")[1].split("SCRIPT:")[0].strip()
 script = data.split("SCRIPT:")[1].split("SCENES:")[0].strip()
 scenes = data.split("SCENES:")[1].strip().split("\n")
 
-# ===== GENERATE VOICE (ElevenLabs) =====
+# ===== GENERATE VOICE =====
 print("🔊 Generating voice with ElevenLabs...")
 
 voice_url = "https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL"
@@ -43,7 +43,7 @@ with open(voice_path, "wb") as f:
 
 print("✅ Voice generated")
 
-# ===== GENERATE IMAGES (Pollinations AI) =====
+# ===== GENERATE IMAGES (Pollinations AI - Retry Only, No Fallback) =====
 print("🎨 Generating images using Pollinations AI...")
 
 image_paths = []
@@ -51,13 +51,29 @@ image_paths = []
 for i, prompt in enumerate(scenes):
     clean_prompt = prompt.replace(" ", "%20")
     url = f"https://image.pollinations.ai/prompt/Cute%20colorful%20cartoon%20style,%20{clean_prompt}?width=1024&height=1024"
-
-    img_data = requests.get(url, timeout=60).content
     
     img_path = f"{OUTPUT_DIR}/scene{i}.png"
-    with open(img_path, "wb") as f:
-        f.write(img_data)
-    
+    success = False
+
+    # Retry up to 5 times
+    for attempt in range(5):
+        try:
+            print(f"🌐 Downloading image {i+1}, attempt {attempt+1}/5")
+            response = requests.get(url, timeout=120)
+
+            if response.status_code == 200 and len(response.content) > 1000:
+                with open(img_path, "wb") as f:
+                    f.write(response.content)
+                success = True
+                break
+
+        except Exception:
+            print("⚠️ Connection timeout... retrying")
+
+    # If still failed -> stop pipeline
+    if not success:
+        raise Exception(f"❌ Pollinations image generation failed for scene {i+1}. Re-run workflow.")
+
     image_paths.append(img_path)
 
 print("✅ Images generated successfully")
