@@ -1,9 +1,13 @@
 name: AI Jain Video Factory
 
 on:
+  workflow_dispatch:
+
   push:
+    branches:
+      - main
     paths:
-      - "stories/**"
+      - "scripts/stories/**"
 
 jobs:
   build-video:
