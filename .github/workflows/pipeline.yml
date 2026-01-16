@@ -1,48 +1,36 @@
-name: AI Jain Video Factory
+name: Jain AI Video Pipeline
 
 on:
-  # Auto run when any story file changes
   push:
     paths:
-      - "stories/**"
-
-  # Manual run button
-  workflow_dispatch:
+      - "stories/*.txt"   # Run only when new story file is added
 
 jobs:
-  build-video:
+  generate-video:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repo
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
+      - name: Install System Dependencies
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-    # ===== Setup Python =====
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: Install Python Dependencies
+        run: pip install moviepy requests google-api-python-client google-auth
 
-    # ===== Install FFmpeg =====
-    - name: Install FFmpeg
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg
+      - name: Generate AI Video
+        run: python generate_video.py
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
 
-    # ===== Install Python dependencies =====
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    # ===== Run video generator =====
-    - name: Generate AI Video
-      run: python generate_video.py
-      env:
-        ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-        YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-        YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-        YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-        STORY_FILE: ${{ env.STORY_FILE }}
+          # 👉 This passes the newly added story file to Python
+          STORY_FILE: ${{ github.event.head_commit.added[0] }}
