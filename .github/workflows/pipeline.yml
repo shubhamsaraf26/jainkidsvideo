@@ -17,14 +17,7 @@ jobs:
     - name: Checkout Repo
       uses: actions/checkout@v4
 
-    # ===== Always pick newest story file =====
-    - name: Detect latest story file
-      run: |
-        FILE=$(ls -t stories/*.txt | head -n 1 | sed 's|stories/||')
-        echo "STORY_FILE=$FILE" >> $GITHUB_ENV
 
-    - name: Show selected story
-      run: echo "📘 Building story -> $STORY_FILE"
 
     # ===== Setup Python =====
     - name: Setup Python
