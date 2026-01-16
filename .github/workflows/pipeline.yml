@@ -1,9 +1,18 @@
 name: Jain AI Video Pipeline
 
 on:
+  # Auto run when new story file is added
   push:
     paths:
-      - "stories/*.txt"   # Run only when new story file is added
+      - "stories/*.txt"
+
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      story_file:
+        description: "Story file path (example: stories/story9.txt)"
+        required: true
+        default: "stories/story1.txt"
 
 jobs:
   generate-video:
@@ -22,7 +31,18 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Install Python Dependencies
-        run: pip install moviepy requests google-api-python-client google-auth
+        run: |
+          pip install --upgrade pip
+          pip install moviepy==1.0.3 requests google-api-python-client google-auth
+
+      - name: Decide Story File
+        id: storypicker
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "STORY_FILE=${{ github.event.inputs.story_file }}" >> $GITHUB_ENV
+          else
+            echo "STORY_FILE=${{ github.event.head_commit.added[0] }}" >> $GITHUB_ENV
+          fi
 
       - name: Generate AI Video
         run: python generate_video.py
@@ -31,6 +51,4 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-
-          # 👉 This passes the newly added story file to Python
-          STORY_FILE: ${{ github.event.head_commit.added[0] }}
+          STORY_FILE: ${{ env.STORY_FILE }}
