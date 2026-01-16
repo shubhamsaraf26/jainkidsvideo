@@ -1,12 +1,12 @@
 name: AI Jain Video Factory
 
 on:
-  # Auto trigger when any story file changes
+  # Auto run when any story file changes
   push:
     paths:
       - "stories/**"
 
-  # Manual trigger button in GitHub Actions
+  # Manual run button
   workflow_dispatch:
 
 jobs:
@@ -17,25 +17,21 @@ jobs:
     - name: Checkout Repo
       uses: actions/checkout@v4
 
-    # ===== Detect changed story file safely =====
-    - name: Detect changed story file
+    # ===== Detect latest story file =====
+    - name: Detect latest story file
       run: |
-        if [ "${{ github.event_name }}" = "push" ]; then
-          FILE=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^stories/.*\.txt' | head -n 1 | sed 's|stories/||')
-          
-          # If detection fails, use default
-          if [ -z "$FILE" ]; then
-            FILE="story1.txt"
-          fi
+        # Try to detect changed story in this push
+        FILE=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^stories/.*\.txt' | tail -n 1 | sed 's|stories/||')
 
-          echo "STORY_FILE=$FILE" >> $GITHUB_ENV
-        else
-          # Manual run default
-          echo "STORY_FILE=story1.txt" >> $GITHUB_ENV
+        # If nothing detected (manual run or edge case), pick newest file from stories folder
+        if [ -z "$FILE" ]; then
+          FILE=$(ls -t stories/*.txt | head -n 1 | sed 's|stories/||')
         fi
 
+        echo "STORY_FILE=$FILE" >> $GITHUB_ENV
+
     - name: Show selected story
-      run: echo "📘 Building -> $STORY_FILE"
+      run: echo "📘 Building story -> $STORY_FILE"
 
     # ===== Setup Python =====
     - name: Setup Python
@@ -49,13 +45,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y ffmpeg
 
-    # ===== Install Python Libraries =====
+    # ===== Install Python dependencies =====
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # ===== Run Video Generator =====
+    # ===== Run video generator =====
     - name: Generate AI Video
       run: python generate_video.py
       env:
