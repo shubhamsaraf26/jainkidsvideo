@@ -1,4 +1,4 @@
-import os, requests, shutil
+import os, requests
 from moviepy.editor import *
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -11,26 +11,19 @@ YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
 YOUTUBE_REFRESH_TOKEN = os.getenv("YOUTUBE_REFRESH_TOKEN")
 
-# ===== DIRECTORIES =====
-STORY_DIR = "stories"
-PROCESSED_DIR = "stories/processed"
-OUTPUT_DIR = "output"
+# ===== STORY FILE PROVIDED BY GITHUB ACTION =====
+story_file_path = os.getenv("STORY_FILE")
 
-os.makedirs(PROCESSED_DIR, exist_ok=True)
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# ===== FIND ONLY NEW STORY FILE =====
-story_files = sorted([f for f in os.listdir(STORY_DIR) if f.endswith(".txt")])
-
-if not story_files:
-    print("✅ No new story file found. Exiting.")
+if not story_file_path:
+    print("❌ No STORY_FILE provided by GitHub Actions")
     exit(0)
 
-# Pick latest added story file
-story_name = story_files[-1]
-STORY_FILE = os.path.join(STORY_DIR, story_name)
+STORY_FILE = story_file_path   # example: stories/story7.txt
 
-print(f"📘 Processing new story file: {STORY_FILE}")
+OUTPUT_DIR = "output"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+print(f"📘 Processing story file: {STORY_FILE}")
 
 # ===== READ STORY =====
 with open(STORY_FILE, "r", encoding="utf-8") as f:
@@ -42,7 +35,7 @@ script = data.split("SCRIPT:")[1].split("SCENES:")[0].strip()
 scenes = data.split("SCENES:")[1].strip().split("\n")
 
 # ===== GENERATE VOICE =====
-print("🔊 Generating voice with ElevenLabs...")
+print("🔊 Generating voice...")
 
 voice_url = "https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL"
 voice_headers = {
@@ -60,7 +53,7 @@ with open(voice_path, "wb") as f:
 print("✅ Voice generated")
 
 # ===== GENERATE IMAGES (Pollinations AI) =====
-print("🎨 Generating images using Pollinations AI...")
+print("🎨 Generating images...")
 
 image_paths = []
 
@@ -73,24 +66,22 @@ for i, prompt in enumerate(scenes):
 
     for attempt in range(5):
         try:
-            print(f"🌐 Downloading image {i+1}, attempt {attempt+1}/5")
+            print(f"🌐 Image {i+1} attempt {attempt+1}/5")
             response = requests.get(url, timeout=120)
-
             if response.status_code == 200 and len(response.content) > 1000:
                 with open(img_path, "wb") as f:
                     f.write(response.content)
                 success = True
                 break
-
         except Exception:
-            print("⚠️ Pollinations timeout... retrying")
+            print("⚠️ Timeout... retrying")
 
     if not success:
         raise Exception(f"❌ Image generation failed for scene {i+1}")
 
     image_paths.append(img_path)
 
-print("✅ Images generated successfully")
+print("✅ Images generated")
 
 # ===== CREATE VIDEO =====
 print("🎬 Creating video...")
@@ -100,8 +91,7 @@ duration_per_image = audio.duration / len(image_paths)
 
 clips = []
 for img in image_paths:
-    clip = ImageClip(img).set_duration(duration_per_image)
-    clips.append(clip)
+    clips.append(ImageClip(img).set_duration(duration_per_image))
 
 video = concatenate_videoclips(clips, method="compose")
 video = video.set_audio(audio)
@@ -141,10 +131,4 @@ request = youtube.videos().insert(
 
 request.execute()
 
-print("🎉 Video Uploaded Successfully!")
-
-# ===== MOVE STORY TO PROCESSED =====
-shutil.move(STORY_FILE, os.path.join(PROCESSED_DIR, story_name))
-print(f"📂 Story moved to {PROCESSED_DIR}/{story_name}")
-
-print("✅ Single new story processed completely")
+print("🎉 Video Generated & Uploaded Successfully!")
