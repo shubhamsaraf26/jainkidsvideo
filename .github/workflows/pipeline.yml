@@ -17,17 +17,10 @@ jobs:
     - name: Checkout Repo
       uses: actions/checkout@v4
 
-    # ===== Detect latest story file =====
+    # ===== Always pick newest story file =====
     - name: Detect latest story file
       run: |
-        # Try to detect changed story in this push
-        FILE=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^stories/.*\.txt' | tail -n 1 | sed 's|stories/||')
-
-        # If nothing detected (manual run or edge case), pick newest file from stories folder
-        if [ -z "$FILE" ]; then
-          FILE=$(ls -t stories/*.txt | head -n 1 | sed 's|stories/||')
-        fi
-
+        FILE=$(ls -t stories/*.txt | head -n 1 | sed 's|stories/||')
         echo "STORY_FILE=$FILE" >> $GITHUB_ENV
 
     - name: Show selected story
