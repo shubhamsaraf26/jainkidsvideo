@@ -1,4 +1,4 @@
-import os, requests
+import os, requests, shutil
 from moviepy.editor import *
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -11,19 +11,26 @@ YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
 YOUTUBE_REFRESH_TOKEN = os.getenv("YOUTUBE_REFRESH_TOKEN")
 
-# ===== STORY FILE (Auto-detected from GitHub Actions) =====
-story_name = os.getenv("STORY_FILE")
-
-# Safety fallback if env var is empty or missing
-if not story_name or story_name.strip() == "":
-    story_name = "story1.txt"
-
-STORY_FILE = f"stories/{story_name}"
-
+# ===== DIRECTORIES =====
+STORY_DIR = "stories"
+PROCESSED_DIR = "stories/processed"
 OUTPUT_DIR = "output"
+
+os.makedirs(PROCESSED_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-print(f"📘 Using story file: {STORY_FILE}")
+# ===== FIND ONLY NEW STORY FILE =====
+story_files = sorted([f for f in os.listdir(STORY_DIR) if f.endswith(".txt")])
+
+if not story_files:
+    print("✅ No new story file found. Exiting.")
+    exit(0)
+
+# Pick latest added story file
+story_name = story_files[-1]
+STORY_FILE = os.path.join(STORY_DIR, story_name)
+
+print(f"📘 Processing new story file: {STORY_FILE}")
 
 # ===== READ STORY =====
 with open(STORY_FILE, "r", encoding="utf-8") as f:
@@ -64,7 +71,6 @@ for i, prompt in enumerate(scenes):
     img_path = f"{OUTPUT_DIR}/scene{i}.png"
     success = False
 
-    # Retry up to 5 times
     for attempt in range(5):
         try:
             print(f"🌐 Downloading image {i+1}, attempt {attempt+1}/5")
@@ -80,7 +86,7 @@ for i, prompt in enumerate(scenes):
             print("⚠️ Pollinations timeout... retrying")
 
     if not success:
-        raise Exception(f"❌ Pollinations image generation failed for scene {i+1}. Re-run workflow.")
+        raise Exception(f"❌ Image generation failed for scene {i+1}")
 
     image_paths.append(img_path)
 
@@ -135,4 +141,10 @@ request = youtube.videos().insert(
 
 request.execute()
 
-print("🎉 AI Video Generated & Uploaded Successfully!")
+print("🎉 Video Uploaded Successfully!")
+
+# ===== MOVE STORY TO PROCESSED =====
+shutil.move(STORY_FILE, os.path.join(PROCESSED_DIR, story_name))
+print(f"📂 Story moved to {PROCESSED_DIR}/{story_name}")
+
+print("✅ Single new story processed completely")
