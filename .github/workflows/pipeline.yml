@@ -1,18 +1,15 @@
 name: Jain AI Video Pipeline
 
 on:
-  # Auto run when new story file is added
   push:
     paths:
       - "stories/*.txt"
 
-  # Manual trigger
   workflow_dispatch:
     inputs:
       story_file:
-        description: "Story file path (example: stories/story9.txt)"
-        required: true
-        default: "stories/story1.txt"
+        description: "Story file path (example: stories/story10.txt)"
+        required: false
 
 jobs:
   generate-video:
@@ -35,14 +32,19 @@ jobs:
           pip install --upgrade pip
           pip install moviepy==1.0.3 requests google-api-python-client google-auth
 
-      - name: Decide Story File
-        id: storypicker
+      # ✅ Determine which story file to use
+      - name: Detect Story File
+        id: detect
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "STORY_FILE=${{ github.event.inputs.story_file }}" >> $GITHUB_ENV
           else
-            echo "STORY_FILE=${{ github.event.head_commit.added[0] }}" >> $GITHUB_ENV
+            FILE=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^stories/.*\.txt$' | head -n 1)
+            echo "STORY_FILE=$FILE" >> $GITHUB_ENV
           fi
+
+      - name: Debug Story File
+        run: echo "Using story file -> $STORY_FILE"
 
       - name: Generate AI Video
         run: python generate_video.py
