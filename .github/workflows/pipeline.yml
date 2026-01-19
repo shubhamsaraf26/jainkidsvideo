@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       story_file:
-        description: "Story file path (example: stories/story10.txt)"
+        description: "Story file path (example: stories/story12.txt)"
         required: false
 
 jobs:
@@ -32,9 +32,8 @@ jobs:
           pip install --upgrade pip
           pip install moviepy==1.0.3 requests google-api-python-client google-auth
 
-      # ✅ Determine which story file to use
+      # 🔥 THIS STEP FIXES YOUR ISSUE
       - name: Detect Story File
-        id: detect
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "STORY_FILE=${{ github.event.inputs.story_file }}" >> $GITHUB_ENV
@@ -43,8 +42,8 @@ jobs:
             echo "STORY_FILE=$FILE" >> $GITHUB_ENV
           fi
 
-      - name: Debug Story File
-        run: echo "Using story file -> $STORY_FILE"
+      - name: Debug
+        run: echo "Using STORY_FILE=$STORY_FILE"
 
       - name: Generate AI Video
         run: python generate_video.py
