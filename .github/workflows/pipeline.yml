@@ -1,14 +1,16 @@
 name: Jain AI Video Pipeline
 
 on:
+  # Auto trigger when new story file is added
   push:
     paths:
       - "stories/*.txt"
 
+  # Manual trigger
   workflow_dispatch:
     inputs:
       story_file:
-        description: "Story file path (example: stories/story12.txt)"
+        description: "Story file path (example: stories/story16.txt)"
         required: false
 
 jobs:
@@ -22,7 +24,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install System Dependencies
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -32,7 +34,7 @@ jobs:
           pip install --upgrade pip
           pip install moviepy==1.0.3 requests google-api-python-client google-auth
 
-      # 🔥 THIS STEP FIXES YOUR ISSUE
+      # ✅ Detect correct story file
       - name: Detect Story File
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -42,9 +44,11 @@ jobs:
             echo "STORY_FILE=$FILE" >> $GITHUB_ENV
           fi
 
-      - name: Debug
+      # ✅ Debug log (you will see selected story file in Actions log)
+      - name: Debug Story File
         run: echo "Using STORY_FILE=$STORY_FILE"
 
+      # ✅ Run your video generator
       - name: Generate AI Video
         run: python generate_video.py
         env:
