@@ -1,4 +1,4 @@
-import os, requests
+import os, re, requests
 from moviepy.editor import *
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -11,12 +11,11 @@ YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
 YOUTUBE_REFRESH_TOKEN = os.getenv("YOUTUBE_REFRESH_TOKEN")
 
-# ===== PICK LATEST STORY FILE BY MODIFICATION TIME =====
+# ===== PICK LATEST STORY BY NUMBER =====
 STORY_DIR = "stories"
 
 story_files = [
-    os.path.join(STORY_DIR, f)
-    for f in os.listdir(STORY_DIR)
+    f for f in os.listdir(STORY_DIR)
     if f.endswith(".txt")
 ]
 
@@ -24,8 +23,12 @@ if not story_files:
     print("⚠️ No story files found in stories folder. Exiting.")
     exit(0)
 
-# ✅ Pick newest file by last modified time
-STORY_FILE = max(story_files, key=os.path.getmtime)
+def extract_number(filename):
+    match = re.search(r"story(\d+)\.txt", filename)
+    return int(match.group(1)) if match else -1
+
+latest_story = max(story_files, key=extract_number)
+STORY_FILE = os.path.join(STORY_DIR, latest_story)
 
 print(f"📘 Processing latest story file: {STORY_FILE}")
 
@@ -59,7 +62,7 @@ with open(voice_path, "wb") as f:
 
 print("✅ Voice generated")
 
-# ===== GENERATE IMAGES (Pollinations AI) =====
+# ===== GENERATE IMAGES =====
 print("🎨 Generating images...")
 
 image_paths = []
