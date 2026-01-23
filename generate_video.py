@@ -11,19 +11,21 @@ YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
 YOUTUBE_REFRESH_TOKEN = os.getenv("YOUTUBE_REFRESH_TOKEN")
 
-# ===== STORY FILE PROVIDED BY GITHUB ACTION =====
-story_file_path = os.getenv("STORY_FILE")
+# ===== ALWAYS PICK LATEST STORY FILE =====
+STORY_DIR = "stories"
 
-if not story_file_path:
-    print("❌ No STORY_FILE provided by GitHub Actions")
+story_files = sorted([f for f in os.listdir(STORY_DIR) if f.endswith(".txt")])
+
+if not story_files:
+    print("⚠️ No story files found in stories folder. Exiting.")
     exit(0)
 
-STORY_FILE = story_file_path   # example: stories/story7.txt
+STORY_FILE = os.path.join(STORY_DIR, story_files[-1])
+
+print(f"📘 Processing latest story file: {STORY_FILE}")
 
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-print(f"📘 Processing story file: {STORY_FILE}")
 
 # ===== READ STORY =====
 with open(STORY_FILE, "r", encoding="utf-8") as f:
@@ -52,7 +54,7 @@ with open(voice_path, "wb") as f:
 
 print("✅ Voice generated")
 
-# ===== GENERATE IMAGES (Pollinations AI) =====
+# ===== GENERATE IMAGES (Pollinations) =====
 print("🎨 Generating images...")
 
 image_paths = []
@@ -60,21 +62,20 @@ image_paths = []
 for i, prompt in enumerate(scenes):
     clean_prompt = prompt.replace(" ", "%20")
     url = f"https://image.pollinations.ai/prompt/Cute%20colorful%20cartoon%20style,%20{clean_prompt}?width=1024&height=1024"
-    
+
     img_path = f"{OUTPUT_DIR}/scene{i}.png"
     success = False
 
     for attempt in range(5):
         try:
-            print(f"🌐 Image {i+1} attempt {attempt+1}/5")
             response = requests.get(url, timeout=120)
             if response.status_code == 200 and len(response.content) > 1000:
                 with open(img_path, "wb") as f:
                     f.write(response.content)
                 success = True
                 break
-        except Exception:
-            print("⚠️ Timeout... retrying")
+        except:
+            print("⚠️ Image timeout... retrying")
 
     if not success:
         raise Exception(f"❌ Image generation failed for scene {i+1}")
