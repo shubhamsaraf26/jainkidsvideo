@@ -11,16 +11,21 @@ YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
 YOUTUBE_REFRESH_TOKEN = os.getenv("YOUTUBE_REFRESH_TOKEN")
 
-# ===== ALWAYS PICK LATEST STORY FILE =====
+# ===== PICK LATEST STORY FILE BY MODIFICATION TIME =====
 STORY_DIR = "stories"
 
-story_files = sorted([f for f in os.listdir(STORY_DIR) if f.endswith(".txt")])
+story_files = [
+    os.path.join(STORY_DIR, f)
+    for f in os.listdir(STORY_DIR)
+    if f.endswith(".txt")
+]
 
 if not story_files:
     print("⚠️ No story files found in stories folder. Exiting.")
     exit(0)
 
-STORY_FILE = os.path.join(STORY_DIR, story_files[-1])
+# ✅ Pick newest file by last modified time
+STORY_FILE = max(story_files, key=os.path.getmtime)
 
 print(f"📘 Processing latest story file: {STORY_FILE}")
 
@@ -54,7 +59,7 @@ with open(voice_path, "wb") as f:
 
 print("✅ Voice generated")
 
-# ===== GENERATE IMAGES (Pollinations) =====
+# ===== GENERATE IMAGES (Pollinations AI) =====
 print("🎨 Generating images...")
 
 image_paths = []
